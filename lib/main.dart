@@ -9,7 +9,9 @@ import 'package:http/http.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_web3_provider/flutter_web3_provider.dart';
 
-main() {
+main() async {
+  await Hive.initFlutter();
+  await Hive.openBox('myBox');
   runApp(MyApp());
 }
 
@@ -57,11 +59,11 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   int _counter = 0;
 
-  String tokenBalance;
+  String tokenBalance = '0';
 
   String selectedAddress;
 
-  String address = '';
+  String address = '0xB1Dd956C0Acf811b7a3CAAb09697849bbd0D4393';
 
   loadBalance() {
     var addr =
@@ -79,7 +81,7 @@ class _MyHomePageState extends State<MyHomePage> {
   callContract() async {
     var addr =
         EthereumAddress.fromHex('0xB1Dd956C0Acf811b7a3CAAb09697849bbd0D4393');
-    var contractAddr = '0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9';
+    var contractAddr = '0xBcca60bB61934080951369a648Fb03DF4F96263C';
     var apiUrl =
         "https://mainnet.infura.io/v3/b63606f0825343fd85b553d6e471a53b";
     var httpClient = new Client();
@@ -102,7 +104,7 @@ class _MyHomePageState extends State<MyHomePage> {
     } else if (balance.isNotEmpty) {
       setState(() {
         double bal =
-            double.tryParse(balance.first.toString()) / 1000000000000000000;
+            double.tryParse(balance.first.toString()) / 1000000;
         tokenBalance = bal.toString();
       });
       print('We have ${balance.first} USDC');
@@ -112,18 +114,24 @@ class _MyHomePageState extends State<MyHomePage> {
   checkProvider() async {
     var accounts = await promiseToFuture(
         ethereum.request(RequestParams(method: 'eth_requestAccounts')));
-    print(accounts);
-    String se = ethereum.selectedAddress;
-    print("selectedAddress: $se");
-    setState(() {
-      selectedAddress = se;
-    });
+    if (accounts != null) {
+      print(accounts);
+    } else {
+      print('No Accounts');
+    }
+  }
+
+  loadDefault() async {
+    var box = await Hive.openBox('myBox');
+    box.put('darkMode', false);
   }
 
   @override
-  void initState() {
+  initState() {
     // TODO: implement initState
     super.initState();
+    loadDefault();
+    callContract();
     if (ethereum != null) {
       setState(() {
         address = ethereum.selectedAddress;
@@ -142,65 +150,134 @@ class _MyHomePageState extends State<MyHomePage> {
     // The Flutter framework has been optimized to make rerunning build methods
     // fast, so that you can just rebuild anything that needs updating rather
     // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text('Saturn Finance'),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Invoke "debug painting" (press "p" in the console, choose the
-          // "Toggle Debug Paint" action from the Flutter Inspector in Android
-          // Studio, or the "Toggle Debug Paint" command in Visual Studio Code)
-          // to see the wireframe for each widget.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Stack(children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(30),
-                child: PhysicalModel(
-                  color: Colors.white,
-                  elevation: 20,
-                  shadowColor: Color(0xFF947BFF),
+    return ValueListenableBuilder(
+      valueListenable: Hive.box('myBox').listenable(),
+      builder: (context, box, widget) {
+        return Scaffold(
+          backgroundColor: box.get('darkMode') ? Colors.black : Colors.white,
+        appBar: AppBar(
+          elevation: 0,
+          toolbarHeight: 100,
+          backgroundColor: box.get('darkMode') ? Colors.black : Colors.white,
+          // Here we take the value from the MyHomePage object that was created by
+          // the App.build method, and use it to set our appbar title.
+          title: Row(
+            children: [
+              CircleAvatar(child: Image.asset('icon.jpg'),
+              radius: 60,
+              ),
+              Text('Saturn Finance', style: TextStyle(
+                color: box.get('darkMode') ? Colors.white : Colors.black,
+              ),)
+            ],
+          ),
+        ),
+        body: Center(
+          // Center is a layout widget. It takes a single child and positions it
+          // in the middle of the parent.
+          child: Column(
+            // Column is also a layout widget. It takes a list of children and
+            // arranges them vertically. By default, it sizes itself to fit its
+            // children horizontally, and tries to be as tall as its parent.
+            //
+            // Invoke "debug painting" (press "p" in the console, choose the
+            // "Toggle Debug Paint" action from the Flutter Inspector in Android
+            // Studio, or the "Toggle Debug Paint" command in Visual Studio Code)
+            // to see the wireframe for each widget.
+            //
+            // Column has various properties to control how it sizes itself and
+            // how it positions its children. Here we use mainAxisAlignment to
+            // center the children vertically; the main axis here is the vertical
+            // axis because Columns are vertical (the cross axis would be
+            // horizontal).
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              Stack(children: [
+                Container(
                   child: Container(
-                    color: Color(0xFF5610D7),
                     height: 600,
                     width: 600,
+                    decoration: BoxDecoration(
+                      color: Color(0xFF5610D7),
+                      borderRadius: BorderRadius.circular(30),
+                      boxShadow: [
+                        BoxShadow(spreadRadius: 1,blurRadius: 200, color: Color(0xFF5610D7)),
+                      ]
+                    ),
                     child: Center(
-                      child: Text(
-                        '$tokenBalance',
-                        style: Theme.of(context).textTheme.headline4,
+                      child: Column(
+                        children: [
+                          CircleAvatar(child: Image.asset('icon-usdc-1.jpeg'),radius: 60,),
+                          Text('USDC', style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 60
+                          ),),
+                          
+                          Text(
+                            '$tokenBalance',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 68,
+                            ),
+                          ),
+                          SizedBox(height: 200,),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                height: 83,
+                                width: 225,
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(15),
+                                
+                                ),
+                                child: Center(
+                                  child: Text('Deposit', style: TextStyle(
+                                    color: Colors.black,
+                                    fontSize: 36,
+                                    fontWeight: FontWeight.w700
+                                  ),),
+                                ),
+                              ),
+                              SizedBox(width: 20),
+                              Container(
+                                height: 83,
+                                width: 225,
+                                decoration: BoxDecoration(
+                                  color: Colors.black54,
+                                  borderRadius: BorderRadius.circular(15)
+                                ),
+                                child: Center(
+                                  child: Text('Withdraw', style: TextStyle(
+                                    color: Colors.white54,
+                                    fontSize: 36,
+                                    fontWeight: FontWeight.w700
+                                  ),),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
                   ),
                 ),
-              ),
-            ]),
-          ],
+              ]),
+            ],
+          ),
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: Colors.black,
-        onPressed: () {
-          loadBalance();
-          callContract();
-        },
-        tooltip: 'Increment',
-        child: Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+        floatingActionButton: FloatingActionButton(
+          backgroundColor: Colors.black,
+          onPressed: () {
+            loadBalance();
+            callContract();
+          },
+          tooltip: 'Increment',
+          child: Icon(Icons.add),
+        ), // This trailing comma makes auto-formatting nicer for build methods.
+      );
+      }
     );
   }
 }
